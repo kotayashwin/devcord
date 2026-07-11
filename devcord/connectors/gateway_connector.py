@@ -34,6 +34,7 @@ class GatewayConnector():
     def __init__(self, token : BotToken, intents : BotIntents):
        self.TOKEN = token
        self.INTENTS = intents
+       self.d = None
 
     def _fetch_url(self) -> JSON:
         """
@@ -58,21 +59,31 @@ class GatewayConnector():
         Sends an `IDENTIFY` packet with the bot information.
         This is the part that requires the token and intents for authentication.
         """
-
-        # Next task is to properly make this
-        await client.send(message = json.dumps({
-            "op" : 2,
-            "d" : {
-                "token" : self.TOKEN,
-                "properties" : {
-                    "os" : "win11",
-                    "browser" : "chrome",
-                    "device" : "chrome"
-                },
-                "compress" : False,
-                "intents" : 53608447
+        
+        await client.send(message = json.dumps(
+            {
+                "op" : 2,
+                "d" : {
+                    "token" : self.TOKEN,
+                    "properties" : {
+                        "os" : "win11",
+                        "browser" : "chrome",
+                        "device" : "chrome"
+                    },
+                    "compress" : False,
+                    "presence" : {
+                            "since" : None,
+                            "activities" : [{
+                                "name" : "yashbot",
+                                "type" : 3
+                            }],
+                            "status" : "online",
+                            "afk" : False
+                        },
+                    "intents" : 53608447
+                    }
             }
-        }))
+        ))
 
     async def _maintain_heartbeat(self, client : Client.ClientConnection, heartbeat_interval : int) -> None:
         """
@@ -88,19 +99,39 @@ class GatewayConnector():
                 jitter = random.random()
                 
                 await asyncio.sleep(heartbeat_interval * jitter / 1000)
-                await client.send(message = json.dumps({"op" : 1, "d": None}))
+                await client.send(message = json.dumps({"op" : 1, "d": self.d}))
                 
                 first_heartbeat = False
             else:
                 await asyncio.sleep(heartbeat_interval / 1000)
-                await client.send(message = json.dumps({"op" : 1, "d": None}))  
+                await client.send(message = json.dumps({"op" : 1, "d": self.d}))  
     
-    async def _receive_events(self, client : Client.ClientConnection):
+    async def _d_cacher(self, client : Client.ClientConnection):
         """
-        For debugging purposes
+        For caching the value of s every time an event comes.
+        This is essential for resuming a broken connection.
         """
         async for message in client:
-            print(message)
+            print(self.d)
+            self.d = (json.loads(message))["s"]
+
+    async def _send_presence(self, client : Client.ClientConnection):
+        await client.send(
+            message = json.dumps(
+                {
+                    "op": 3,
+                    "d": {
+                        "since": None,
+                        "activities": [{
+                            "name": "yashbot",
+                            "type": 3
+                            }],
+                        "status": "online",
+                        "afk": False
+                    }
+                }
+            )
+        )
 
     async def connect_to_gateway(self):
         """
@@ -113,14 +144,17 @@ class GatewayConnector():
             hello_packet = json.loads(await client.recv(decode = True))
 
             await asyncio.gather(
-                self._send_identify(
-                    client = client
-                ),
-                self._receive_events(
-                    client = client
-                ),
                 self._maintain_heartbeat(
                     client = client,
                     heartbeat_interval = int(hello_packet["d"]["heartbeat_interval"])
+                ),
+                self._send_identify(
+                    client = client
+                ),
+                self._d_cacher(
+                    client = client
+                ),
+                self._send_presence(
+                    client = client
                 )
             )
