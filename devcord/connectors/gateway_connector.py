@@ -10,11 +10,13 @@ in the guilds the bot is listening to.
 For a comprehensive explanation of how the Gateway operates, see https://docs.discord.com/developers/events/gateway.
 """
 
+from ..typehints.typehints import *
+
 import asyncio
 import httpx
 import json
 import random
-from typehints.typehints import *
+import sys
 from websockets.asyncio import client as Client
 
 class GatewayConnector():
@@ -31,7 +33,7 @@ class GatewayConnector():
     # The version number must be hardcoded. 
     # There is no endpoint to determine the latest stable version.
 
-    def __init__(self, token : BotToken, intents : BotIntents):
+    def __init__(self, token : BotToken, intents : BotIntents) -> None:
        self.TOKEN = token
        self.INTENTS = intents
        self.d = None
@@ -54,7 +56,7 @@ class GatewayConnector():
             
         return response.json()
 
-    async def _send_identify(self, client : Client.ClientConnection):
+    async def _send_identify(self, client : Client.ClientConnection) -> None:
         """
         Sends an `IDENTIFY` packet with the bot information.
         This is the part that requires the token and intents for authentication.
@@ -66,21 +68,18 @@ class GatewayConnector():
                 "d" : {
                     "token" : self.TOKEN,
                     "properties" : {
-                        "os" : "win11",
-                        "browser" : "chrome",
-                        "device" : "chrome"
+                        "os" : f"{sys.platform}",
+                        "browser" : "DevCord",
+                        "device" : "DevCord"
                     },
                     "compress" : False,
                     "presence" : {
                             "since" : None,
-                            "activities" : [{
-                                "name" : "yashbot",
-                                "type" : 3
-                            }],
+                            "activities" : [],   # This is deliberate
                             "status" : "online",
                             "afk" : False
                         },
-                    "intents" : 53608447
+                    "intents" : self.INTENTS
                     }
             }
         ))
@@ -112,7 +111,6 @@ class GatewayConnector():
         This is essential for resuming a broken connection.
         """
         async for message in client:
-            print(self.d)
             self.d = (json.loads(message))["s"]
 
     async def _send_presence(self, client : Client.ClientConnection):
@@ -122,10 +120,7 @@ class GatewayConnector():
                     "op": 3,
                     "d": {
                         "since": None,
-                        "activities": [{
-                            "name": "yashbot",
-                            "type": 3
-                            }],
+                        "activities": [],  # Deliberate
                         "status": "online",
                         "afk": False
                     }

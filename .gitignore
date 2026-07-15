@@ -1,0 +1,6 @@
+testlib.py
+
+devcord/__pycache__
+devcord/connectors/__pycache__
+devcord/consts/__pycache__
+devcord/typehints/__pycache__
