@@ -26,7 +26,8 @@ class HTTPAPIConnector():
         Method to send a `GET` request with the specified params.
         (Doing this because of redundancy)
         """
-        
+        async with httpx.AsyncClient() as client:
+            client.get
         ...
 
     async def _send_post(self, url, content_type, json):
@@ -60,5 +61,3 @@ class HTTPAPIConnector():
                     "content" : message
                 }
             )
-        
-# Poorly generalised and also incomplete, fix in upcoming commits

@@ -31,7 +31,7 @@ class GatewayConnector():
     """
 
     # The version number must be hardcoded. 
-    # There is no endpoint to determine the latest stable version.
+    # There is no HTTP endpoint to determine the latest stable version.
 
     def __init__(self, token : BotToken, intents : BotIntents) -> None:
        self.TOKEN = token
@@ -103,15 +103,7 @@ class GatewayConnector():
                 first_heartbeat = False
             else:
                 await asyncio.sleep(heartbeat_interval / 1000)
-                await client.send(message = json.dumps({"op" : 1, "d": self.d}))  
-    
-    async def _d_cacher(self, client : Client.ClientConnection):
-        """
-        For caching the value of s every time an event comes.
-        This is essential for resuming a broken connection.
-        """
-        async for message in client:
-            self.d = (json.loads(message))["s"]
+                await client.send(message = json.dumps({"op" : 1, "d": self.d}))
 
     async def _send_presence(self, client : Client.ClientConnection):
         await client.send(
@@ -127,6 +119,16 @@ class GatewayConnector():
                 }
             )
         )
+
+    async def _listener(self, client : Client.ClientConnection):
+        """
+        The helper function which listens to incoming event information.
+        It parallelly handles caching the value of s on every event. It is essential for
+        resuming broken connections.
+        """
+        async for message in client:
+            print(message)
+            self.d = (json.loads(message))["s"]
 
     async def connect_to_gateway(self):
         """
@@ -146,7 +148,7 @@ class GatewayConnector():
                 self._send_identify(
                     client = client
                 ),
-                self._d_cacher(
+                self._listener(
                     client = client
                 ),
                 self._send_presence(

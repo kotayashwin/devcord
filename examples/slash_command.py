@@ -7,8 +7,7 @@ bot = BotUser(
 )
 
 @bot.slash_command
-async def ping(): # Creates a slash command with ping as its calling name,
-                  # this is to be dealt with later
-    bot.send("pong!")
+async def ping():       # Creates a slash command with ping as its calling name,
+    bot.send("pong!")   # this is to be dealt with later
 
 bot.run()

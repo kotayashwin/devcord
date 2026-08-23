@@ -4,3 +4,9 @@ devcord/__pycache__
 devcord/connectors/__pycache__
 devcord/consts/__pycache__
 devcord/typehints/__pycache__
+
+devcord/.vscode
+
+.venv
+
+requirements.txt

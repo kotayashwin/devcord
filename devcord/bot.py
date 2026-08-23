@@ -19,11 +19,11 @@ class BotUser():
         """
         Decorator to create normal message commands with a set prefix, and name
         being the name of the function.    
-        Prefix defaults to `\`.
+        Prefix defaults to `\\`.
         """
         pass
 
-    async def slash_command(self):
+    async def slash_command(self, *args, **kwargs):
         """
         Decorator to create slash commands, with name being the name of the function.
         """
@@ -32,12 +32,10 @@ class BotUser():
     def run(self):
         """
         Runs the bot with the specified token, intents, and potential prefix.
-        Prefix defaults to `\`.  
+        Prefix defaults to `\\`.  
         If no intents are specified, `STANDARD_INTENTS` is assumed.
         """
 
-        print("Welcome to DevCord!")
-        
         asyncio.run(
             GatewayConnector(
                 token = self.TOKEN,
