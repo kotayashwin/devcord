@@ -9,4 +9,4 @@ devcord/.vscode
 
 .venv
 
-requirements.txt
+.example.json
