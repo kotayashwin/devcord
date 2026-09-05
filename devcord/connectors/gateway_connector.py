@@ -10,14 +10,17 @@ in the guilds the bot is listening to.
 For a comprehensive explanation of how the Gateway operates, see https://docs.discord.com/developers/events/gateway.
 """
 
-from ..typehints.typehints import *
-
 import asyncio
-import httpx
 import json
 import random
 import sys
+
+import httpx
 from websockets.asyncio import client as Client
+
+from ..typehints.typehints import *
+from ..consts.opcodes import *
+from ..events import *
 
 class GatewayConnector():
     """
@@ -33,10 +36,12 @@ class GatewayConnector():
     # The version number must be hardcoded. 
     # There is no HTTP endpoint to determine the latest stable version.
 
-    def __init__(self, token : BotToken, intents : BotIntents) -> None:
-       self.TOKEN = token
-       self.INTENTS = intents
-       self.d = None
+    def __init__(self, token : BotToken, intents : BotIntents, disp) -> None:
+        self.TOKEN = token
+        self.INTENTS = intents
+        self.API_VERSION = 10
+        self.disp = disp
+        self.d = None
 
     def _fetch_url(self) -> JSON:
         """
@@ -45,12 +50,13 @@ class GatewayConnector():
         This is recommended by Discord themselves, so that the case of any
         future changes to the URL can be handled, and to also fetch recommended sharding details.
         """
+        # TODO: sharding implementation in devcord
 
         with httpx.Client() as client:
             response = client.get(
-                url = "https://discord.com/api/v10/gateway/bot",
+                url = f"https://discord.com/api/v{self.API_VERSION}/gateway/bot",
                 headers = {
-                    "Authorization" : f"Bot {self.TOKEN}"
+                        "Authorization" : f"Bot {self.TOKEN}"
                     }
                 )
             
@@ -62,27 +68,29 @@ class GatewayConnector():
         This is the part that requires the token and intents for authentication.
         """
         
-        await client.send(message = json.dumps(
-            {
-                "op" : 2,
-                "d" : {
-                    "token" : self.TOKEN,
-                    "properties" : {
-                        "os" : f"{sys.platform}",
-                        "browser" : "DevCord",
-                        "device" : "DevCord"
-                    },
-                    "compress" : False,
-                    "presence" : {
-                            "since" : None,
-                            "activities" : [],   # This is deliberate
-                            "status" : "online",
-                            "afk" : False
+        await client.send(
+            message = json.dumps(
+                {
+                    "op" : 2,
+                    "d" : {
+                        "token" : self.TOKEN,
+                        "properties" : {
+                            "os" : f"{sys.platform}",
+                            "browser" : "DevCord",
+                            "device" : "DevCord"
                         },
-                    "intents" : self.INTENTS
-                    }
-            }
-        ))
+                        "compress" : False,
+                        "presence" : {
+                                "since" : None,
+                                "activities" : [],
+                                "status" : "online",
+                                "afk" : False
+                            },
+                        "intents" : self.INTENTS
+                        }
+                }
+            )
+        )
 
     async def _maintain_heartbeat(self, client : Client.ClientConnection, heartbeat_interval : int) -> None:
         """
@@ -112,7 +120,7 @@ class GatewayConnector():
                     "op": 3,
                     "d": {
                         "since": None,
-                        "activities": [],  # Deliberate
+                        "activities": [],
                         "status": "online",
                         "afk": False
                     }
@@ -120,15 +128,75 @@ class GatewayConnector():
             )
         )
 
+    async def _handler(self, event: str, client: Client.ClientConnection):
+        """
+        The universal helper function that handles events coming in from the Gateway.
+        
+        Some critical processes like """
+        opcode = event["op"]
+
+        if opcode == DISPATCH:
+            # This is a received heartbeat, it's different from a sent one:
+            # https://docs.discord.com/developers/events/gateway#heartbeat-requests
+            # httpx.post(
+            #     url = f"https://discord.com/api/v10/channels/{int(event["d"]["channel_id"])}/messages",
+            #     json = {
+            #         "content": "pong!"
+            #     },
+            #     headers = {
+            #         "Authorization" : f"Bot {self.TOKEN}",
+            #         "User-Agent" : f"devcord@{sys.platform} (https://github.com/kotayashwin/devcord, 1.0)", # add devcord version here
+            #         "Content-Type" : "application/json"
+            #     }
+            # )
+            await self.disp(event["t"], event["d"])
+        elif opcode == HEARTBEAT:
+            ...
+        elif opcode == IDENTIFY:
+            ...
+        elif opcode == PRESENCE_UPDATE:
+            ...
+        elif opcode == VOICE_STATE_UPDATE:
+            ...
+        elif opcode == RESUME:
+            ...
+        elif opcode == RECONNECT:
+            ...
+        elif opcode == REQUEST_GUILD_MEMBERS:
+            ...
+        elif opcode == INVALID_SESSION:
+            ...
+        elif opcode == HELLO:
+            ...
+        elif opcode == HEARTBEAT_ACK:
+            ...
+        elif opcode == REQUEST_SOUNDBOARD_SOUNDS:
+            ...
+        elif opcode == REQUEST_CHANNEL_INFO:
+            ...
+        else:
+            raise Exception("Unknown or unsupported opcode received from Discord.")
+
     async def _listener(self, client : Client.ClientConnection):
         """
         The helper function which listens to incoming event information.
-        It parallelly handles caching the value of s on every event. It is essential for
-        resuming broken connections.
+
+        While it's meant to solely be a listener, it also caches the value of s at every event, and passes it as the
+        value of d on the next heartbeat. It is also essential for resuming broken connections. There's no point
+        in separating this implementation into another helper function.
+        
         """
-        async for message in client:
-            print(message)
-            self.d = (json.loads(message))["s"]
+        
+        async for event in client:
+            event = json.loads(event)
+
+            # Caches the value of s in self.d
+            if (event["s"] != None):
+                self.d = event["s"]
+
+            asyncio.create_task(
+                self._handler(event, client)
+            )
 
     async def connect_to_gateway(self):
         """
