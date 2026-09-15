@@ -1,1 +1,1 @@
-- Implement proper intent value calculation, while keeping `STANDARD_INTENTS` and `ALL_INTENTS` as two precalculated constant values.
+- ~~Implement proper intent value calculation, while keeping `STANDARD_INTENTS` and `ALL_INTENTS` as two precalculated constant values.~~
